@@ -8,11 +8,10 @@ pipeline {
     }
 
     stages {
-
-        stage('Cloning Github repo to Jenkins') {
+        stage('Cloning GitHub repo to Jenkins') {
             steps {
                 script {
-                    echo 'Cloning Github repo to Jenkins............'
+                    echo 'Cloning GitHub repo to Jenkins............'
                     checkout scmGit(
                         branches: [[name: '*/main']],
                         extensions: [],
@@ -28,12 +27,12 @@ pipeline {
         stage('Setting up Virtual Environment and Installing dependencies') {
             steps {
                 script {
-                    echo 'Setting up virtual environment and installing dependencies............'
+                    echo 'Setting up Virtual Environment and Installing dependencies............'
                     sh '''
-                        python3 -m venv ${VENV_DIR}
-                        . ${VENV_DIR}/bin/activate
-                        pip install --upgrade pip
-                        pip install -e .
+                    python3 -m venv ${VENV_DIR}
+                    . ${VENV_DIR}/bin/activate
+                    pip install --upgrade pip
+                    pip install -e .
                     '''
                 }
             }
@@ -43,33 +42,33 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
                     script {
-                        echo 'Building and pushing Docker image to GCR.............'
+                        echo 'Building and Pushing Docker Image to GCR.............'
                         sh '''
-                            export PATH=$PATH:${GCLOUD_PATH}
+                        export PATH=$PATH:${GCLOUD_PATH}
 
-                            gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
-                            gcloud config set project ${GCP_PROJECT}
-                            gcloud auth configure-docker --quiet
+                        gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                        gcloud config set project ${GCP_PROJECT}
+                        gcloud auth configure-docker --quiet
 
-                            docker build -t gcr.io/${GCP_PROJECT}/ml-project:latest .
-                            docker push gcr.io/${GCP_PROJECT}/ml-project:latest
+                        docker buildx create --use || true
+                        docker buildx build --platform linux/amd64 \
+                            -t gcr.io/${GCP_PROJECT}/ml-project:latest \
+                            --push .
                         '''
                     }
                 }
             }
         }
-        
-        stage('Deploy to Google Cloud Run'){
-            steps{
-                withCredentials([file(credentialsId: 'gcp-key' , variable : 'GOOGLE_APPLICATION_CREDENTIALS')]){
-                    script{
-                        echo 'Deploy to Google Cloud Run.............'
+
+        stage('Deploy to Google Cloud Run') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                    script {
+                        echo 'Deploying to Google Cloud Run.............'
                         sh '''
                         export PATH=$PATH:${GCLOUD_PATH}
 
-
                         gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
-
                         gcloud config set project ${GCP_PROJECT}
 
                         gcloud run deploy ml-project \
@@ -77,13 +76,10 @@ pipeline {
                             --platform=managed \
                             --region=us-central1 \
                             --allow-unauthenticated
-                            
                         '''
                     }
                 }
             }
         }
-        
     }
 }
-    
